@@ -3,6 +3,14 @@
 - 如果获取到异常页码参数则设置为第一页
 - 视图函数需要把生成的`html`代码传给模板
 
+## 目录
+- [样式依赖](#样式依赖)
+- [CDN](#CDN)
+- [__init__](#__init__)
+- [pager](#pager)
+- [使用](#使用)
+- [模板代码](#模板代码)
+
 ## 样式依赖
 - ([Bootstrap](http://v3.bootcss.com/css/))
 
@@ -53,7 +61,7 @@ def __init__(self, current_page, all_count, per_page, base_url, show_page=11):
 # 使用的时候实例化
 page_info = PageInfo(request.GET.get('page'),all_count, 3, '/index.html')
 ```
-## 模板 代码
+## 模板代码
 
 ```
 {% if page_info.pager %}
