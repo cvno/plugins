@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import socket
 import select
 
@@ -55,23 +56,14 @@ class QinBing(object):
                 self.conns.remove(obj)  # del obj  防止重复发送
             # r 数据返回,接收到数据
             for obj in r:
-                response = obj.sock.recv(8096)
+                response = obj.sock.recv(8096)  # TODO 循环接收内容
+                ## TODO 分隔请求头
                 print(obj.info['host'], response)
+                # 执行自定义回调函数  多个回调函数
+                for func in obj.info['callback']:
+                    func(response)
                 self.sock_list.remove(obj)  # del obj 防止重复接收
 
             # 所有的请求已经返回
             if not self.sock_list:
                 break
-
-
-url_list = [
-    {'host': 'www.baidu.com', 'port': 80, 'path': '/'},
-    {'host': 'www.bing.com', 'port': 80, 'path': '/'},
-    {'host': 'www.qq.com', 'port': 80, 'path': '/'},
-]
-
-obj = QinBing()
-for item in url_list:
-    obj.add_request(item)
-
-obj.run()

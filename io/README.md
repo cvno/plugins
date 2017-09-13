@@ -13,7 +13,7 @@ IO多路复用是指内核一旦发现进程指定的一个或者多个IO条件�
 >1. 发送Http请求
 >2. 设置为非阻塞
 >3. try: 捕捉报错区域
->4. 定义比的操作
+>4. 定义一些操作
 ```python
 # socket 代码
 # 异步IO 伪代码
@@ -69,4 +69,30 @@ while True:
         response = obj.recv(...)
 ```
 
+
+# 使用
+
+```python
+# 导入模块
+from .io import QinBing
+
+# 自定义回调函数
+def done(response):
+    print(response)
+
+# url 参数 
+url_list = [
+    {'host': 'www.baidu.com', 'port': 80, 'path': '/','callback':[done,]},  # 如果是列表循环取出来
+    {'host': 'www.bing.com', 'port': 80, 'path': '/','callback':[done]},
+    {'host': 'www.qq.com', 'port': 80, 'path': '/','callback':[done]},
+]
+
+# 使用
+obj = QinBing()
+for item in url_list:
+    obj.add_request(item)
+
+obj.run()
+
+```
 
