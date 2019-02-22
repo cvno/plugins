@@ -1,5 +1,9 @@
+from  urllib import parse
+import urllib3
+
+
 class PageInfo(object):
-    def __init__(self, current_page, all_count, per_page, base_url, show_page=11):
+    def __init__(self, current_page, all_count, per_page, request, show_page=5):
         try:
             if current_page == None:
                 self.current_page = 1
@@ -9,15 +13,25 @@ class PageInfo(object):
         except Exception as e:
             self.current_page = 1
         # 计算需要的页数
-        a,b = divmod(all_count,per_page)
-        print(a,b)
-        if b:
+        a,b = divmod(all_count, per_page)
+        if b > 0:
             a += 1
-            print(a)
         self.all_pager = a
-        print(self.all_pager)
         self.show_page = show_page  # 显示的页数
-        self.base_url = base_url
+        self.base_url = request.get_full_path() # 获取 url及所有参数
+        bits = list(parse.urlparse(self.base_url))
+        qs =parse.parse_qs(bits[4]) # 把 url 中的参数转为 字典
+        # 有参数就保留参数 但是 page 要去掉
+        if qs:
+            if qs.get('page'):  # 如果有 page 参数就删掉
+                qs.pop('page')
+                bits[4] = parse.urlencode(qs, True)
+                self.base_url = '{}&'.format(parse.urlunparse(bits))
+            else:
+                self.base_url = '{}&'.format(self.base_url)
+        else:
+            self.base_url = '{}?'.format(self.base_url)
+
 
     def start(self):
         return (self.current_page - 1) * self.per_page
@@ -50,29 +64,29 @@ class PageInfo(object):
 
         # 上一页
         if self.current_page <= 1:
-            first = "<li class='disabled'><a href='javascript:;'>首页</a></li>"          # 首页
-            prev = "<li class='disabled'><a href='javascript:;'><</a></li>"             # 上页
+            first = "<li class='disabled'><a class='page-link' href='javascript:;'>首页</a></li>"          # 首页
+            prev = "<li class='disabled'><a class='page-link' href='javascript:;'><</a></li>"             # 上页
         else:
-            first = "<li ><a href='%s?page=%s'>首页</a></li>" % (self.base_url, 1)
-            prev = "<li><a href='%s?page=%s'>上一页</a></li>" % (self.base_url, self.current_page - 1)
+            first = "<li class='page-item'><a href='{}page={}'>首页</a></li>".format(self.base_url, 1)
+            prev = "<li class='page-item'><a class='page-link' href='{}page={}'><</a></li>".format(self.base_url, self.current_page -1)
         page_list.append(first)
         page_list.append(prev)
 
         # 页码
-        for i in range(begin, stop+1):
+        for i in range(begin, stop):
             if i == self.current_page:
-                temp = "<li class='active'><a href='javascript:;'>%s</a></li>"%i
+                temp = "<li class='page-item active'><a class='page-link' href='javascript:;'>{}</a></li>".format(i)
             else:
-                temp = "<li><a href='%s?page=%s'>%s</a></li>" % (self.base_url, i, i)
+                temp = "<li class='page-item'><a class='page-link' href='{0}page={1}'>{1}</a></li>".format(self.base_url, i)
             page_list.append(temp)
 
         # 下一页
         if self.current_page >= self.all_pager:
-            nex = "<li class='disabled'><a href='javascript:;'>></a>"
-            last = "<li class='disabled'><a href='javascript:;'>尾页</a></li>"
+            nex = "<li class='disabled page-item'><a class='page-link' href='javascript:;'>></a>"
+            last = "<li class='disabled page-item'><a class='page-link' href='javascript:;'>尾页</a></li>"
         else:
-            nex = "<li><a href='%s?page=%s'>></a></li>" % (self.base_url, self.current_page + 1)
-            last = "<li><a href='%s?page=%s'>尾页</a></li>" % (self.base_url, self.all_pager)
+            nex = "<li class='page-item'><a class='page-link' href='{}page={}'>></a></li>".format(self.base_url, self.current_page +1)
+            last = "<li class='page-item'><a class='page-link' href='{}page={}'>尾页</a></li>".format(self.base_url, self.all_pager)
 
 
         page_list.append(nex)

@@ -59,21 +59,19 @@ def __init__(self, current_page, all_count, per_page, base_url, show_page=11):
 
 ``` python
 # 使用的时候实例化
-page_info = PageInfo(request.GET.get('page'),all_count, 3, '/index.html')
+page_info = pager.PageInfo(request.GET.get('page'), all_count, page_rows, request)
 ```
 ## 模板代码
 
 ```
 {% if page_info.pager %}
-    <div class="container text-center">
-        <div class="col-md-8">
+        <div class="pull-right pagination">
             <nav aria-label="Page navigation center">
-                  <ul class="pagination">
-                      {{ page_info.pager|safe }}
-                  </ul>
+                <ul class="pagination">
+                    {{ page_info.pager|safe }}
+                </ul>
             </nav>
         </div>
-    </div>
 {% endif %}
 ```
 
