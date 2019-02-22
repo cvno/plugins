@@ -1,12 +1,19 @@
+import re
+
 from django.utils.deprecation import MiddlewareMixin
 from django.shortcuts import HttpResponse
+
+from rbac.service import menu
 from rbac import config
-import re
 
 
 class RbacMiddleware(MiddlewareMixin):
 
     def process_request(self,request,*args,**kwargs):
+
+        if request.user.is_authenticated:
+            request.session['menu'] = menu(request)
+
         for pattern in config.VALID_URL:
             if re.match(pattern,request.path_info):
                 return None

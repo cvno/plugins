@@ -1,62 +1,103 @@
 import re
-from rbac import models
 from django.utils.safestring import mark_safe
+from django.db.models import Count
 
-def menu(user_id,current_url):
-    """
-    根据用户ID，当前URL:获取用户所有菜单以及权限，是否显示，是否打开
-    :param user_id:
-    :param current_url:
+from rbac import models
+
+def permission_session(request):
+    '''
+    获取当前用户的所有权限信息
+    {
+        '/ah-index.html': ["GET", "POST", "DEL", "Edit"],
+        '/order.html': ["GET", "POST", "DEL", "Edit"],
+        '/index-(\d+).html': ["GET", "POST", "DEL", "Edit"],
+    }
+    :param request:
     :return:
-    """
-    # 所有菜单：处理成当前用关联的菜单
-    all_menu_list = models.Menu.objects.all().values('id','caption','parent_id')
-    user = models.User.objects.filter(id=user_id).first()       # 当前的用户
-    role_list = models.Role.objects.filter(users__user=user)    # 当前用户的角色
-    # 当前用户的权限信息 及 菜单信息
-    permission_list = models.Permission2Action2Role.objects.filter(role__in=role_list).values('permission__id','permission__url','permission__menu_id','permission__caption').distinct()
-    ##### 将权限挂靠到菜单上 ########
+    '''
+    user = models.User.objects.get(id=request.user.id)
+
+    # 当前用户的所有角色
+    roles = models.Role.objects.filter(users__user=user)
+
+    # 当前用户的所有权限(重复)+方法
+    p2a = models.Permission2Action2Role.objects.filter(role__in=list(roles)).values('permission__url', "action__code")
+
+    res = {}
+    for item in p2a:
+        if not res.get(item['permission__url']):
+            res[item['permission__url']] = []
+            res[item['permission__url']].append(item['action__code'])
+        else:
+            res[item['permission__url']].append(item['action__code'])
+    print(res)
+    return res
+
+
+def menu(request):
+    '''
+    获取当前用户的菜单, 根据用户ID，当前URL:获取用户所有菜单以及权限，是否显示，是否打开
+    '''
+
+    # 当前用户信息
+    user = models.User.objects.get(id=request.user.id)
+
+    # 当前用户的所有角色
+    roles = models.Role.objects.filter(users__user=user)
+
+    # 当前用户的所有权限(重复)+方法
+    p2a = models.Permission2Action2Role.objects.filter(role__in=list(roles)).values('permission__url', "action__code")
+
+    user_permission_dict = {}
+
+    for item in p2a:
+        if item['permission__url'] in user_permission_dict:
+            user_permission_dict[item['permission__url']].append(item['action__code'])
+        else:
+            user_permission_dict[item['permission__url']] = [item['action__code'], ]
+    # 权限信息
+
+    permission_list = models.Permission2Action2Role.objects.filter(role__in=roles).values('permission_id',
+                                                                                          'permission__caption',
+                                                                                          'permission__url',
+                                                                                          'permission__menu').annotate(c=Count('id'))
+    all_menu_list = models.Menu.objects.values('id', 'caption', 'parent_id')
+
+    # ------  结构化处理开始
     all_menu_dict = {}
     for row in all_menu_list:
-        row['child'] = []      # 添加孩子
-        row['status'] = False # 是否显示菜单
-        row['opened'] = False # 是否默认打开
+        row['opened'] = False   # 菜单是否打开
+        row['status'] = False   # 菜单是否显示
+        row['child'] = []
         all_menu_dict[row['id']] = row
 
     for per in permission_list:
-        if not per['permission__menu_id']:
-            continue
-
-        item = {
-            'id':per['permission__id'],
-            'caption':per['permission__caption'],
-            'parent_id':per['permission__menu_id'],
-            'url': per['permission__url'],
-            'status': True,
-            'opened': False
-        }
-        if re.match(per['permission__url'],current_url):
+        item = {'id': per['permission__menu'], 'caption': per['permission__caption'], 'url': per['permission__url'],
+                'parent_id': per['permission__menu'],
+                'opened': False,
+                'status': True}
+        menu_id = item['parent_id']
+        all_menu_dict[menu_id]['child'].append(item)
+        if re.match(item['url'], request.path_info):
+        # if re.match(r'/sound_(\d+).html', request.path_info):
             item['opened'] = True
-        pid = item['parent_id']
-        all_menu_dict[pid]['child'].append(item)
 
-        # 将当前权限前辈status=True
-        temp = pid # 1.父亲ID
-        while not all_menu_dict[temp]['status']:
-            all_menu_dict[temp]['status'] = True
-            temp = all_menu_dict[temp]['parent_id']
-            if not temp:
-                break
-
-        # 将当前权限前辈opened=True
         if item['opened']:
-            temp1 = pid # 1.父亲ID
-            while not all_menu_dict[temp1]['opened']:
-                all_menu_dict[temp1]['opened'] = True
-                temp1 = all_menu_dict[temp1]['parent_id']
-                if not temp1:
+            pid = menu_id
+            while not all_menu_dict[pid]['opened']:
+                all_menu_dict[pid]['opened'] = True
+                pid = all_menu_dict[pid]['parent_id']
+                if not pid:
                     break
-    # ############ 处理菜单和菜单之间的等级关系 ############
+
+        if item['status']:
+            pid = menu_id
+            while not all_menu_dict[pid]['status']:
+                all_menu_dict[pid]['status'] = True
+                pid = all_menu_dict[pid]['parent_id']
+                if not pid:
+                    break
+
     result = []
     for row in all_menu_list:
         pid = row['parent_id']
@@ -65,42 +106,46 @@ def menu(user_id,current_url):
         else:
             result.append(row)
 
-
-    ##################### 结构化处理结果 #####################
-    for row in result:
-        print(row['caption'],row['status'],row['opened'],row)
-
-
     def menu_tree(menu_list):
         tpl1 = """
-        <div class='menu-item'>
-            <div class='menu-header'>{0}</div>
-            <div class='menu-body {2}'>{1}</div>
-        </div>
+        <!--Menu list item-->
+        <li class="">
+            <a href="#">
+                <i class="psi-mouse-3"></i>
+                <span class="menu-title">{0}</span>
+                <i class="arrow"></i>
+            </a>
+
+            <!--Submenu-->
+            <ul class="collapse {2}">
+                {1}
+            </ul>
+        </li>
         """
         tpl2 = """
-        <a href='{0}' class='{1}'>{2}</a>
+        <li class="{1}"><a href="{0}" >{2}</a></li>
         """
-
         menu_str = ""
         for menu in menu_list:
-            if not menu['status']:
+            if not menu['status']:  # 菜单不生成
                 continue
-            # menu: 菜单，权限（url）
-            if menu.get('url'):
-                # 权限
-                menu_str += tpl2.format(menu['url'],'active' if menu['opened'] else "",menu['caption'])
-            else:
-                # 菜单
-                if menu['child']:
-                    child_html = menu_tree(menu['child'])
-                else:
-                    child_html = ""
-                menu_str += tpl1.format(menu['caption'], child_html,"" if menu['opened'] else 'hide')
+            active = ""
+            if menu['opened']:  # 菜单默认打开
+                active = 'active-link'
 
+            if menu.get('url'):
+                menu_str += tpl2.format(menu['url'], active, menu['caption'])
+            else:
+                if menu.get('child'):
+                    child = menu_tree(menu.get('child'))
+                else:
+                    child = ""
+                menu_str += tpl1.format(menu['caption'], child, "in" if menu['opened'] else '')
         return menu_str
+
+
     menu_html = menu_tree(result)
-    return menu_html
+    return mark_safe(menu_html)
 
 
 # simple_tag

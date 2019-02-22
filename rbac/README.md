@@ -15,7 +15,7 @@
 service.permission_session(1,request)
 ```
 
-2.注册中间件
+2.注册中间件, 注册APP
 
 ```python
 rbac.middleware.md.RbacMiddleware 添加settings中MIDDLEWARE中，如：

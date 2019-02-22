@@ -1,6 +1,6 @@
 VALID_URL = [
-    '/app01/.*',
-    '/app02/.*'
-    '/login.html'
-    '/logout.html'
+    '/admin*',
+    '/x*',
+    '/login.html',
+    '/logout.html',
 ]
