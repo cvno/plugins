@@ -26,7 +26,8 @@ class PageInfo(object):
             if qs.get('page'):  # 如果有 page 参数就删掉
                 qs.pop('page')
                 bits[4] = parse.urlencode(qs, True)
-                self.base_url = '{}&'.format(parse.urlunparse(bits))
+                mark = '&' if len(bits[4]) > 1 else '?'
+                self.base_url = '{}{}'.format(parse.urlunparse(bits), mark)
             else:
                 self.base_url = '{}&'.format(self.base_url)
         else:
