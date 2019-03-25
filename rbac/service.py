@@ -19,6 +19,13 @@ def permission_session(request):
 
     # 当前用户的所有角色
     roles = models.Role.objects.filter(users__user=user)
+    # 获取用户的最高等级
+    last = None
+    for role in roles:
+        last = role
+        if last != None and last.level <= role.level:
+            last = role
+    request.session['permission_name'] = last.caption if last else '未知用户'
 
     # 当前用户的所有权限(重复)+方法
     p2a = models.Permission2Action2Role.objects.filter(role__in=list(roles)).values('permission__url', "action__code")
@@ -60,6 +67,7 @@ def menu(request):
     permission_list = models.Permission2Action2Role.objects.filter(role__in=roles).values('permission_id',
                                                                                           'permission__caption',
                                                                                           'permission__url',
+                                                                                          'permission__status',
                                                                                           'permission__menu').annotate(c=Count('id'))
     all_menu_list = models.Menu.objects.values('id', 'caption', 'parent_id')
 
@@ -75,7 +83,7 @@ def menu(request):
         item = {'id': per['permission__menu'], 'caption': per['permission__caption'], 'url': per['permission__url'],
                 'parent_id': per['permission__menu'],
                 'opened': False,
-                'status': True}
+                'status': per['permission__status']}
         menu_id = item['parent_id']
         all_menu_dict[menu_id]['child'].append(item)
         if re.match(item['url'], request.path_info):

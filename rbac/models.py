@@ -8,6 +8,7 @@ class Role(models.Model):
     角色表
     """
     caption = models.CharField(verbose_name='角色', max_length=32)
+    level = models.IntegerField(verbose_name='level 标识', default=0)
 
     def __str__(self):
         return self.caption
@@ -49,6 +50,7 @@ class Permission(models.Model):
     """
     caption = models.CharField(verbose_name='权限', max_length=32)
     url = models.CharField(verbose_name='URL正则', max_length=128)
+    status = models.BooleanField(verbose_name='是否显示菜单')
     menu = models.ForeignKey(Menu, verbose_name='所属菜单', related_name='permissions',null=True,blank=True,on_delete=models.DO_NOTHING)
 
     def __str__(self):
